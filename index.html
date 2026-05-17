@@ -4,17 +4,21 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>WELL DONE - מערכת חשבוניות</title>
+
 <style>
 body{
 font-family:Arial,sans-serif;
 background:#f3f4f6;
-padding:20px;
+margin:0;
+padding:15px;
 color:#111;
 }
+
 .container{
 max-width:1100px;
 margin:auto;
 }
+
 .box{
 background:white;
 padding:20px;
@@ -22,67 +26,101 @@ border-radius:18px;
 margin-bottom:16px;
 box-shadow:0 2px 10px rgba(0,0,0,0.08);
 }
-input,select,button{
-width:100%;
-padding:12px;
-margin-top:6px;
-border-radius:12px;
-border:1px solid #ddd;
-box-sizing:border-box;
-font-size:16px;
-}
-button{
-background:#111827;
+
+.logo{
+background:black;
 color:white;
+padding:18px;
+font-size:34px;
 font-weight:bold;
-cursor:pointer;
+text-align:center;
+border-radius:14px;
+letter-spacing:3px;
+margin-bottom:20px;
 }
+
 .grid{
 display:grid;
 grid-template-columns:1fr 1fr;
 gap:12px;
 }
+
+input,select,button{
+width:100%;
+padding:12px;
+border-radius:12px;
+border:1px solid #ccc;
+font-size:16px;
+box-sizing:border-box;
+}
+
+button{
+background:#111827;
+color:white;
+border:none;
+font-weight:bold;
+cursor:pointer;
+}
+
+button:hover{
+opacity:0.9;
+}
+
 table{
 width:100%;
 border-collapse:collapse;
 margin-top:15px;
 }
+
 th,td{
 border:1px solid #ddd;
 padding:10px;
 text-align:right;
 }
+
 th{
 background:#111827;
 color:white;
 }
+
 .summary{
-margin-top:20px;
-font-size:18px;
+font-size:20px;
+font-weight:bold;
+margin-top:15px;
+}
+
+.customer-card{
+border:1px solid #ddd;
+padding:12px;
+border-radius:12px;
+margin-bottom:10px;
+}
+
+@media(max-width:700px){
+.grid{
+grid-template-columns:1fr;
 }
 .logo{
-width:220px;
-border-radius:14px;
+font-size:24px;
+}
 }
 </style>
 </head>
+
 <body>
 
 <div class="container">
 
 <div class="box">
-<img class="logo" src="https://via.placeholder.com/220x80?text=WELL+DONE">
-<h1>מערכת חשבוניות WELL DONE</h1>
+<div class="logo">WELL DONE</div>
+<h1>מערכת חשבוניות לקצבייה</h1>
 </div>
 
 <div class="box">
+
 <h2>פרטי לקוח</h2>
 
 <div class="grid">
-<div>
-<label>תאריך</label>
-<input type="date" id="invoiceDate">
-</div>
 
 <div>
 <label>שם לקוח</label>
@@ -95,118 +133,268 @@ border-radius:14px;
 </div>
 
 <div>
+<label>תאריך</label>
+<input type="date" id="invoiceDate">
+</div>
+
+<div>
 <label>חוב קודם</label>
 <input type="number" id="previousDebt" value="0">
 </div>
+
 </div>
+
+<br>
+
+<button onclick="saveCustomer()">שמור לקוח</button>
+
 </div>
 
 <div class="box">
+
 <h2>הוספת מוצר</h2>
 
 <div class="grid">
+
 <div>
 <label>מוצר</label>
-<select id="product">
-<option value="בשר טחון">בשר טחון</option>
-<option value="פרגיות">פרגיות</option>
-<option value="שניצל עוף">שניצל עוף</option>
-<option value="כתף טלה">כתף טלה</option>
-</select>
+<select id="product"></select>
 </div>
 
 <div>
 <label>כמות</label>
-<input type="number" id="qty" value="1">
+<input type="number" id="qty" value="1" step="0.001">
 </div>
 
 <div>
 <label>מחיר</label>
-<input type="number" id="price" value="70">
+<input type="number" id="price">
 </div>
 
 <div>
 <label>&nbsp;</label>
 <button onclick="addItem()">הוסף מוצר</button>
 </div>
+
 </div>
 
 <table>
+
 <thead>
 <tr>
 <th>מוצר</th>
 <th>כמות</th>
 <th>מחיר</th>
-<th>סה״כ</th>
+<th>סה"כ</th>
 </tr>
 </thead>
 
 <tbody id="itemsBody"></tbody>
+
 </table>
 
 <div class="summary">
-<div>סך הכל לפני מע״מ: ₪<span id="subtotal">0</span></div>
-<div>מע״מ 18%: ₪<span id="vat">0</span></div>
-<div>סה״כ אחרי מע״מ: ₪<span id="total">0</span></div>
-<div>חוב קודם: ₪<span id="debt">0</span></div>
-<h2>סה״כ כולל חוב קודם: ₪<span id="grand">0</span></h2>
+סך הכל לפני מע"מ:
+<span id="subtotal">₪0</span>
 </div>
+
+<div class="summary">
+מע"מ:
+<span id="vat">₪0</span>
+</div>
+
+<div class="summary">
+סך הכל אחרי מע"מ:
+<span id="total">₪0</span>
+</div>
+
+<div class="summary">
+חוב קודם:
+<span id="debtText">₪0</span>
+</div>
+
+<div class="summary">
+סה"כ כולל חוב קודם:
+<span id="grandTotal">₪0</span>
+</div>
+
+<br>
+
+<button onclick="window.print()">
+הדפס חשבונית
+</button>
+
+</div>
+
+<div class="box">
+
+<h2>לקוחות שמורים</h2>
+
+<div id="customers"></div>
+
 </div>
 
 </div>
 
 <script>
-document.getElementById("invoiceDate").value =
-new Date().toISOString().split('T')[0];
 
-let items = [];
+const VAT = 0.18;
+
+const products = [
+
+{name:"בשר טחון 1 קג",price:70},
+{name:"פרגיות",price:76},
+{name:"שניצל עוף",price:49.9},
+{name:"אסאדו",price:85},
+{name:"אנטריקוט",price:135},
+{name:"כתף טלה",price:159},
+{name:"צלעות טלה",price:179},
+{name:"גולש",price:74},
+{name:"בריסקט",price:79},
+{name:"דנבר",price:99},
+{name:"כנפיים",price:14},
+{name:"כרעיים",price:36.9},
+{name:"משלוח",price:25}
+
+];
+
+let items=[];
+
+function loadProducts(){
+
+const select=document.getElementById("product");
+
+products.forEach(p=>{
+
+const option=document.createElement("option");
+
+option.value=p.name;
+option.textContent=p.name;
+
+select.appendChild(option);
+
+});
+
+fillPrice();
+
+}
+
+function fillPrice(){
+
+const product=document.getElementById("product").value;
+
+const found=products.find(p=>p.name===product);
+
+document.getElementById("price").value=found.price;
+
+}
+
+document.getElementById("product").addEventListener("change",fillPrice);
 
 function addItem(){
 
-const product = document.getElementById("product").value;
-const qty = Number(document.getElementById("qty").value);
-const price = Number(document.getElementById("price").value);
+const product=document.getElementById("product").value;
+const qty=Number(document.getElementById("qty").value);
+const price=Number(document.getElementById("price").value);
 
-items.push({product,qty,price});
+const total=qty*price;
+
+items.push({
+product,
+qty,
+price,
+total
+});
 
 drawItems();
-calculate();
+
 }
 
 function drawItems(){
 
-const body = document.getElementById("itemsBody");
-body.innerHTML = "";
+const body=document.getElementById("itemsBody");
+
+body.innerHTML="";
+
+let subtotal=0;
 
 items.forEach(item=>{
 
-body.innerHTML += `
+subtotal+=item.total;
+
+body.innerHTML+=`
 <tr>
 <td>${item.product}</td>
 <td>${item.qty}</td>
 <td>₪${item.price}</td>
-<td>₪${(item.qty*item.price).toFixed(2)}</td>
+<td>₪${item.total.toFixed(2)}</td>
 </tr>
 `;
 
 });
-}
 
-function calculate(){
+const vat=subtotal*VAT;
+const total=subtotal+vat;
+const debt=Number(document.getElementById("previousDebt").value);
 
-const subtotal = items.reduce((sum,item)=>sum+(item.qty*item.price),0);
-const vat = subtotal * 0.18;
-const total = subtotal + vat;
-const debt = Number(document.getElementById("previousDebt").value || 0);
-const grand = total + debt;
-
-document.getElementById("subtotal").innerText = subtotal.toFixed(2);
-document.getElementById("vat").innerText = vat.toFixed(2);
-document.getElementById("total").innerText = total.toFixed(2);
-document.getElementById("debt").innerText = debt.toFixed(2);
-document.getElementById("grand").innerText = grand.toFixed(2);
+document.getElementById("subtotal").innerText="₪"+subtotal.toFixed(2);
+document.getElementById("vat").innerText="₪"+vat.toFixed(2);
+document.getElementById("total").innerText="₪"+total.toFixed(2);
+document.getElementById("debtText").innerText="₪"+debt.toFixed(2);
+document.getElementById("grandTotal").innerText="₪"+(total+debt).toFixed(2);
 
 }
+
+function saveCustomer(){
+
+const name=document.getElementById("customerName").value;
+const phone=document.getElementById("customerPhone").value;
+
+const customer={
+name,
+phone
+};
+
+let customers=JSON.parse(localStorage.getItem("customers")||"[]");
+
+customers.push(customer);
+
+localStorage.setItem("customers",JSON.stringify(customers));
+
+drawCustomers();
+
+alert("לקוח נשמר");
+
+}
+
+function drawCustomers(){
+
+const customers=JSON.parse(localStorage.getItem("customers")||"[]");
+
+const box=document.getElementById("customers");
+
+box.innerHTML="";
+
+customers.forEach(c=>{
+
+box.innerHTML+=`
+<div class="customer-card">
+<b>${c.name}</b><br>
+${c.phone}
+</div>
+`;
+
+});
+
+}
+
+document.getElementById("invoiceDate").value=
+new Date().toISOString().split("T")[0];
+
+loadProducts();
+
+drawCustomers();
+
 </script>
 
 </body>
