@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WELL DONE - מערכת חשבוניות</title>
+<style>
+body{
+font-family:Arial,sans-serif;
+background:#f3f4f6;
+padding:20px;
+color:#111;
+}
+.container{
+max-width:1100px;
+margin:auto;
+}
+.box{
+background:white;
+padding:20px;
+border-radius:18px;
+margin-bottom:16px;
+box-shadow:0 2px 10px rgba(0,0,0,0.08);
+}
+input,select,button{
+width:100%;
+padding:12px;
+margin-top:6px;
+border-radius:12px;
+border:1px solid #ddd;
+box-sizing:border-box;
+font-size:16px;
+}
+button{
+background:#111827;
+color:white;
+font-weight:bold;
+cursor:pointer;
+}
+.grid{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:12px;
+}
+table{
+width:100%;
+border-collapse:collapse;
+margin-top:15px;
+}
+th,td{
+border:1px solid #ddd;
+padding:10px;
+text-align:right;
+}
+th{
+background:#111827;
+color:white;
+}
+.summary{
+margin-top:20px;
+font-size:18px;
+}
+.logo{
+width:220px;
+border-radius:14px;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<div class="box">
+<img class="logo" src="https://via.placeholder.com/220x80?text=WELL+DONE">
+<h1>מערכת חשבוניות WELL DONE</h1>
+</div>
+
+<div class="box">
+<h2>פרטי לקוח</h2>
+
+<div class="grid">
+<div>
+<label>תאריך</label>
+<input type="date" id="invoiceDate">
+</div>
+
+<div>
+<label>שם לקוח</label>
+<input id="customerName">
+</div>
+
+<div>
+<label>טלפון</label>
+<input id="customerPhone">
+</div>
+
+<div>
+<label>חוב קודם</label>
+<input type="number" id="previousDebt" value="0">
+</div>
+</div>
+</div>
+
+<div class="box">
+<h2>הוספת מוצר</h2>
+
+<div class="grid">
+<div>
+<label>מוצר</label>
+<select id="product">
+<option value="בשר טחון">בשר טחון</option>
+<option value="פרגיות">פרגיות</option>
+<option value="שניצל עוף">שניצל עוף</option>
+<option value="כתף טלה">כתף טלה</option>
+</select>
+</div>
+
+<div>
+<label>כמות</label>
+<input type="number" id="qty" value="1">
+</div>
+
+<div>
+<label>מחיר</label>
+<input type="number" id="price" value="70">
+</div>
+
+<div>
+<label>&nbsp;</label>
+<button onclick="addItem()">הוסף מוצר</button>
+</div>
+</div>
+
+<table>
+<thead>
+<tr>
+<th>מוצר</th>
+<th>כמות</th>
+<th>מחיר</th>
+<th>סה״כ</th>
+</tr>
+</thead>
+
+<tbody id="itemsBody"></tbody>
+</table>
+
+<div class="summary">
+<div>סך הכל לפני מע״מ: ₪<span id="subtotal">0</span></div>
+<div>מע״מ 18%: ₪<span id="vat">0</span></div>
+<div>סה״כ אחרי מע״מ: ₪<span id="total">0</span></div>
+<div>חוב קודם: ₪<span id="debt">0</span></div>
+<h2>סה״כ כולל חוב קודם: ₪<span id="grand">0</span></h2>
+</div>
+</div>
+
+</div>
+
+<script>
+document.getElementById("invoiceDate").value =
+new Date().toISOString().split('T')[0];
+
+let items = [];
+
+function addItem(){
+
+const product = document.getElementById("product").value;
+const qty = Number(document.getElementById("qty").value);
+const price = Number(document.getElementById("price").value);
+
+items.push({product,qty,price});
+
+drawItems();
+calculate();
+}
+
+function drawItems(){
+
+const body = document.getElementById("itemsBody");
+body.innerHTML = "";
+
+items.forEach(item=>{
+
+body.innerHTML += `
+<tr>
+<td>${item.product}</td>
+<td>${item.qty}</td>
+<td>₪${item.price}</td>
+<td>₪${(item.qty*item.price).toFixed(2)}</td>
+</tr>
+`;
+
+});
+}
+
+function calculate(){
+
+const subtotal = items.reduce((sum,item)=>sum+(item.qty*item.price),0);
+const vat = subtotal * 0.18;
+const total = subtotal + vat;
+const debt = Number(document.getElementById("previousDebt").value || 0);
+const grand = total + debt;
+
+document.getElementById("subtotal").innerText = subtotal.toFixed(2);
+document.getElementById("vat").innerText = vat.toFixed(2);
+document.getElementById("total").innerText = total.toFixed(2);
+document.getElementById("debt").innerText = debt.toFixed(2);
+document.getElementById("grand").innerText = grand.toFixed(2);
+
+}
+</script>
+
+</body>
+</html>
