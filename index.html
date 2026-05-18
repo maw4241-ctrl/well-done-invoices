@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>WELL DONE PRO — ניהול חשבונות</title>
+<meta name="theme-color" content="#0F0D0B">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="WELL DONE">
+<link rel="manifest" href="manifest.json">
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&family=Frank+Ruhl+Libre:wght@400;700;900&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -630,6 +635,68 @@ tbody tr { transition: all 0.15s; cursor: default; }
   .form-row.four { grid-template-columns: 1fr 1fr; }
   .header-date { display: none; }
 }
+
+/* ===== PWA / MOBILE / LOCK ===== */
+.stat-card { cursor: pointer; }
+.stat-card:active, .client-card:active, .btn:active { transform: scale(0.98); }
+.lock-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: radial-gradient(circle at top, #2D2824 0%, #0F0D0B 55%);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.lock-screen.open { display: flex; }
+.lock-card {
+  width: 100%;
+  max-width: 390px;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 20px;
+  padding: 28px;
+  box-shadow: var(--shadow-lg);
+}
+.lock-logo {
+  background: linear-gradient(135deg, var(--red), var(--red2));
+  width: 60px;
+  height: 60px;
+  border-radius: 16px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  margin:0 auto 14px;
+  font-size:28px;
+}
+.lock-title { text-align:center; font-size:24px; font-weight:900; color:var(--cream); margin-bottom:4px; }
+.lock-sub { text-align:center; color:var(--text3); font-size:13px; margin-bottom:22px; }
+.mobile-install-hint {
+  display:none;
+  background: var(--surface2);
+  border: 1px solid var(--gold);
+  color: var(--gold-light);
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 12px;
+  margin-bottom: 12px;
+}
+.mobile-install-hint.show { display:block; }
+@media (max-width: 700px) {
+  .header-inner { height:auto; padding:10px 12px; flex-wrap:wrap; gap:10px; }
+  .header-nav { order:3; width:100%; overflow-x:auto; padding-bottom:4px; }
+  .nav-btn { min-width:max-content; padding:9px 12px; }
+  .app { padding:14px; }
+  .page-hd { align-items:stretch; flex-direction:column; gap:12px; }
+  .page-hd .flex { flex-wrap:wrap; }
+  .dash-grid { grid-template-columns:1fr; }
+  .invoice-layout { grid-template-columns:1fr; }
+  .modal { width:96%; }
+  .modal-body { padding:16px; }
+  .btn { justify-content:center; }
+}
+
 @media print {
   body > *:not(#receiptModal) { display: none !important; }
   #receiptModal { position: static !important; background: none !important; display: block !important; }
@@ -640,6 +707,25 @@ tbody tr { transition: all 0.15s; cursor: default; }
 </style>
 </head>
 <body>
+
+<!-- LOCK SCREEN -->
+<div class="lock-screen open" id="lockScreen">
+  <div class="lock-card">
+    <div class="lock-logo">🥩</div>
+    <div class="lock-title">WELL DONE</div>
+    <div class="lock-sub">כניסה למערכת החשבוניות</div>
+    <div class="field">
+      <div class="label">שם משתמש</div>
+      <input type="text" id="loginUser" autocomplete="username" placeholder="שם משתמש">
+    </div>
+    <div class="field" style="margin-top:12px;">
+      <div class="label">סיסמה</div>
+      <input type="password" id="loginPass" autocomplete="current-password" placeholder="סיסמה" onkeydown="if(event.key==='Enter') loginApp()">
+    </div>
+    <button class="btn btn-primary btn-full" onclick="loginApp()" style="margin-top:18px;padding:14px;">כניסה</button>
+    <div class="lock-sub" style="margin-top:14px;">ברירת מחדל: moshe / 4241 — אפשר לשנות בקוד</div>
+  </div>
+</div>
 
 <!-- HEADER -->
 <header class="header">
@@ -654,11 +740,12 @@ tbody tr { transition: all 0.15s; cursor: default; }
     <nav class="header-nav">
       <button class="nav-btn active" onclick="showPage('dashboard')" id="nav-dashboard">📊 דשבורד</button>
       <button class="nav-btn" onclick="showPage('invoice')" id="nav-invoice">📄 חשבונית חדשה</button>
-      <button class="nav-btn" onclick="showPage('clients')" id="nav-clients">👥 לקוחות</button>
+      <button class="nav-btn" onclick="goToClients('all')" id="nav-clients">👥 לקוחות</button>
       <button class="nav-btn" onclick="showPage('history')" id="nav-history">📋 היסטוריה</button>
       <button class="nav-btn" onclick="showPage('pricelist')" id="nav-pricelist">💰 מחירון</button>
     </nav>
     <div class="header-date" id="headerDate"></div>
+    <button class="btn btn-ghost btn-sm" onclick="logoutApp()">🔒 יציאה</button>
   </div>
 </header>
 
@@ -668,25 +755,25 @@ tbody tr { transition: all 0.15s; cursor: default; }
 <!-- ============ PAGE: DASHBOARD ============ -->
 <div class="page active" id="page-dashboard">
   <div class="stats-row">
-    <div class="stat-card red">
+    <div class="stat-card red" onclick="goToClients('debt')" title="פתח לקוחות עם חוב">
       <div class="stat-label">חובות פתוחים</div>
       <div class="stat-value red" id="stat-debt">₪0</div>
       <div class="stat-sub" id="stat-debt-sub">0 לקוחות עם חוב</div>
       <div class="stat-icon">💸</div>
     </div>
-    <div class="stat-card gold">
+    <div class="stat-card gold" onclick="goToHistory('month')" title="פתח חשבוניות החודש">
       <div class="stat-label">מכירות החודש</div>
       <div class="stat-value gold" id="stat-monthly">₪0</div>
       <div class="stat-sub" id="stat-monthly-sub">0 חשבוניות</div>
       <div class="stat-icon">📈</div>
     </div>
-    <div class="stat-card green">
+    <div class="stat-card green" onclick="goToClients('all')" title="פתח רשימת לקוחות">
       <div class="stat-label">סה"כ לקוחות</div>
       <div class="stat-value green" id="stat-clients">0</div>
       <div class="stat-sub">לקוחות רשומים</div>
       <div class="stat-icon">👥</div>
     </div>
-    <div class="stat-card blue">
+    <div class="stat-card blue" onclick="showPage('history')" title="פתח היסטוריית חשבוניות">
       <div class="stat-label">חשבוניות</div>
       <div class="stat-value" id="stat-invoices">0</div>
       <div class="stat-sub">סה"כ בארכיון</div>
@@ -1216,6 +1303,20 @@ let selectedHistCat = '';
 // ============================================================
 //  NAVIGATION
 // ============================================================
+
+let clientFilterMode = 'all';
+let historyFilterMode = 'all';
+
+function goToClients(mode='all') {
+  clientFilterMode = mode;
+  showPage('clients');
+}
+
+function goToHistory(mode='all') {
+  historyFilterMode = mode;
+  showPage('history');
+}
+
 function showPage(id) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
@@ -1601,7 +1702,8 @@ function renderClientsList() {
   const list = document.getElementById('clients-list');
   document.getElementById('clients-count-badge').textContent = db.clients.length;
 
-  const filtered = db.clients.filter(c=>c.name.toLowerCase().includes(q)||(c.phone||'').includes(q));
+  let filtered = db.clients.filter(c=>c.name.toLowerCase().includes(q)||(c.phone||'').includes(q));
+  if (clientFilterMode === 'debt') filtered = filtered.filter(c=>(c.debt||0)>0);
   if (!filtered.length) {
     list.innerHTML = `<div class="empty"><span class="empty-icon">👥</span><div class="empty-text">${q?'לא נמצאו תוצאות':'אין לקוחות. הוסף לקוח ראשון!'}</div></div>`;
     return;
@@ -1760,6 +1862,10 @@ function renderHistory() {
   const tbody = document.getElementById('history-tbody');
 
   let list = [...db.invoices];
+  if (historyFilterMode === 'month') {
+    const n = new Date();
+    list = list.filter(inv => { const d = new Date(inv.date); return d.getMonth()===n.getMonth() && d.getFullYear()===n.getFullYear(); });
+  }
   if (q) list = list.filter(inv=>inv.clientName.toLowerCase().includes(q)||String(inv.num).includes(q));
   if (statusF) list = list.filter(inv=>inv.status===statusF);
   list.sort((a,b)=>new Date(b.date)-new Date(a.date));
@@ -1799,7 +1905,14 @@ function openInvoiceView(id) {
   openModal('invoiceViewModal');
 }
 
-function printInvoiceView() { window.print(); }
+function printInvoiceView() {
+  const content = document.getElementById('invViewBody')?.innerHTML || document.getElementById('receiptContent')?.innerHTML || '';
+  if (!content) { window.print(); return; }
+  const w = window.open('', '_blank');
+  if (!w) { window.print(); return; }
+  w.document.write(`<!DOCTYPE html><html lang="he" dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>הדפסת חשבונית</title><style>body{margin:0;padding:16px;background:#fff;font-family:Heebo,Arial,sans-serif;color:#111}.receipt-paper{max-width:480px;margin:0 auto;background:#fff;color:#111}.receipt-top{background:#111;color:#fff;text-align:center;padding:28px}.receipt-logo-big{font-size:32px;font-weight:900;letter-spacing:4px}.receipt-logo-big span{color:#D94F3D}.receipt-logo-sub{font-size:10px;color:#C9943A;letter-spacing:4px;margin-top:4px}.receipt-section{padding:16px 20px;border-bottom:1px dashed #DDD}.receipt-kv{display:flex;justify-content:space-between;font-size:13px;padding:3px 0}.receipt-kv .k{color:#666}.receipt-kv .v{font-weight:700}.receipt-items-list{padding:16px 20px}.receipt-item-row{display:flex;justify-content:space-between;align-items:flex-start;padding:8px 0;border-bottom:1px solid #F0F0F0;font-size:13px}.rir-name{font-weight:700}.rir-detail{font-size:11px;color:#888}.rir-total{font-weight:800;white-space:nowrap}.receipt-totals-box{padding:16px 20px;background:#F8F5F0}.receipt-t-row{display:flex;justify-content:space-between;font-size:13px;padding:3px 0}.receipt-t-row.big{font-size:20px;font-weight:900;margin-top:10px;border-top:2px solid #111;padding-top:10px}.receipt-t-row.big .rtr-val{color:#D94F3D}.receipt-footer-text{text-align:center;padding:16px;font-size:12px;color:#888;background:#fff}@media print{body{padding:0}}</style></head><body>${content}<script>setTimeout(()=>window.print(),300)<\/script></body></html>`);
+  w.document.close();
+}
 
 function deleteInvoice(id, e) {
   if (e) e?.stopPropagation?.();
@@ -1891,6 +2004,40 @@ function toast(msg, type='') {
   t._to = setTimeout(()=>t.className='toast', 2800);
 }
 
+
+// ============================================================
+//  BASIC LOGIN + PWA
+// ============================================================
+const APP_USERNAME = 'moshe';
+const APP_PASSWORD = '4241';
+
+function initAuth() {
+  const ok = localStorage.getItem('wd_logged_in') === 'yes';
+  document.getElementById('lockScreen').classList.toggle('open', !ok);
+}
+function loginApp() {
+  const u = document.getElementById('loginUser').value.trim();
+  const p = document.getElementById('loginPass').value.trim();
+  if (u === APP_USERNAME && p === APP_PASSWORD) {
+    localStorage.setItem('wd_logged_in','yes');
+    document.getElementById('lockScreen').classList.remove('open');
+    toast('נכנסת למערכת ✓','ok');
+  } else {
+    toast('שם משתמש או סיסמה לא נכונים','err');
+  }
+}
+function logoutApp() {
+  localStorage.removeItem('wd_logged_in');
+  document.getElementById('loginPass').value = '';
+  document.getElementById('lockScreen').classList.add('open');
+}
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
+  });
+}
+
 // ============================================================
 //  INIT
 // ============================================================
@@ -1898,6 +2045,7 @@ const now = new Date();
 document.getElementById('headerDate').textContent =
   now.toLocaleDateString('he-IL',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 
+initAuth();
 showPage('dashboard');
 </script>
 </body>
