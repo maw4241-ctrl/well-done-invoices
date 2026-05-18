@@ -603,6 +603,19 @@ tbody tr { transition: all 0.15s; cursor: default; }
 .unpaid-dot { width:7px; height:7px; border-radius:50%; background:var(--red); }
 .partial-dot { width:7px; height:7px; border-radius:50%; background:var(--gold); }
 
+
+/* BARCODE SCANNER */
+.barcode-actions { display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
+.barcode-actions .btn { flex:1; justify-content:center; }
+.barcode-reader-box { display:none; background:var(--surface2); border:1px solid var(--border2); border-radius:var(--radius); padding:12px; margin-bottom:14px; }
+.barcode-reader-box.open { display:block; }
+#barcodeReader { width:100%; max-width:420px; margin:0 auto; overflow:hidden; border-radius:12px; }
+.barcode-hint { text-align:center; font-size:12px; color:var(--text3); margin-top:8px; }
+.barcode-code { font-size:11px; color:var(--text3); margin-top:2px; }
+.barcode-edit-row { display:flex; gap:6px; align-items:center; min-width:210px; }
+.barcode-edit-row input { padding:6px 8px; font-size:12px; direction:ltr; text-align:left; }
+.client-repair-box { margin-top:12px; padding:12px; border:1px dashed var(--gold); border-radius:10px; color:var(--text2); font-size:13px; }
+
 /* QUICK PRODUCTS GRID */
 .quick-grid {
   display: grid;
@@ -889,8 +902,17 @@ tbody tr { transition: all 0.15s; cursor: default; }
           <div class="cat-tabs" id="catTabs"></div>
           <div class="product-search-wrap">
             <div class="search-icon">🔍</div>
-            <input type="text" id="productSearch" placeholder="חיפוש מוצר מהמחירון..." oninput="onProductSearch()" autocomplete="off" style="padding-right:38px;">
+            <input type="text" id="productSearch" placeholder="חיפוש מוצר / ברקוד מהמחירון..." oninput="onProductSearch()" autocomplete="off" style="padding-right:38px;">
             <div class="product-suggestions" id="productSuggestions"></div>
+          </div>
+          <div class="barcode-actions">
+            <button class="btn btn-gold" onclick="startBarcodeScanner()">📷 סרוק ברקוד</button>
+            <button class="btn btn-ghost" onclick="manualBarcodeSearch()">⌨️ חיפוש לפי ברקוד</button>
+          </div>
+          <div class="barcode-reader-box" id="barcodeBox">
+            <div id="barcodeReader"></div>
+            <div class="barcode-hint">כוון את המצלמה לברקוד. עובד רק באתר מאובטח HTTPS ובאישור מצלמה.</div>
+            <button class="btn btn-danger btn-full mt-12" onclick="stopBarcodeScanner()">סגור מצלמה</button>
           </div>
           <div class="section-label">מוצרים מהירים</div>
           <div class="quick-grid" id="quickGrid"></div>
@@ -1056,8 +1078,9 @@ tbody tr { transition: all 0.15s; cursor: default; }
     </div>
     <div class="search-bar" style="width:280px;margin:0;">
       <div class="search-icon">🔍</div>
-      <input type="text" id="price-search" placeholder="חיפוש במחירון..." oninput="renderPriceList()" style="padding-right:38px;">
+      <input type="text" id="price-search" placeholder="חיפוש במחירון / ברקוד..." oninput="renderPriceList()" style="padding-right:38px;">
     </div>
+    <button class="btn btn-gold" onclick="openQuickBarcodeAdd()">🏷️ הוסף ברקוד חדש</button>
   </div>
 
   <div class="cat-tabs" id="priceListCatTabs" style="margin-bottom:16px;"></div>
@@ -1066,7 +1089,7 @@ tbody tr { transition: all 0.15s; cursor: default; }
       <div class="table-wrap">
         <table>
           <thead><tr>
-            <th>קטגוריה</th><th>שם מוצר</th><th>מחיר ל-ק"ג / יח' (₪)</th><th>פעולה</th>
+            <th>קטגוריה</th><th>שם מוצר</th><th>מחיר ל-ק"ג / יח' (₪)</th><th>ברקוד / מק״ט</th><th>פעולה</th>
           </tr></thead>
           <tbody id="price-tbody"></tbody>
         </table>
@@ -1186,6 +1209,7 @@ tbody tr { transition: all 0.15s; cursor: default; }
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script>
 // ============================================================
 //  DATA
@@ -1306,6 +1330,145 @@ const PRICE_LIST = [
   {cat:'טלה',name:'צלעות טלה קפוא',price:179},{cat:'טלה',name:'שומן טלה קפוא',price:110},
 ];
 
+
+const BARCODE_MAP = {
+  'אויסטר טרי':'7290001495568',
+  'אויסטר סטייק קפוא':'7290001495629',
+  'אוסובוקו מוסדי טרי':'7290006289315',
+  'אוסובוקו מוסדי קפוא':'7290001021125',
+  'אוסובוקו פרוס קפוא':'7290006289667',
+  'אנטריקוט עגלה מוסדי טרי':'7290001021026',
+  'אנטריקוט עגלה פרימיום טרי':'7290001806500',
+  'אנטריקוט עגלה קפוא':'7290019494393',
+  'אסאדו מוסדי טרי':'7290008432054',
+  'אסאדו בלי עצם פרימיום קפוא':'7290001021217',
+  'אסאדו מוסדי קפוא':'7290008432702',
+  'אסאדו מפורק טרי':'7290001021088',
+  'אסאדו מפורק קפוא':'7290001021095',
+  'אסאדו פרוס עם עצם קפוא':'7290006289865',
+  'אסאדו שרשרת קפוא':'7290019494218',
+  'בריסקט מוסדי טרי':'7290008432665',
+  'בריסקט מוסדי קפוא':'7290008432160',
+  'בריסקט סקין קפוא':'7290006289445',
+  'בריסקט טרי':'7290006289018',
+  'בריסקט סקנט קאט טרי':'7290001806890',
+  'בריסקט פירסט קאט קפוא':'7290001806685',
+  'בריסקט פירסט קאט טרי':'7290001806883',
+  'בשר לטשולנט':'7290006289056',
+  'גולש בקר טרי':'7290008432061',
+  'גולש בקר קפוא':'7290001495001',
+  'דנבר קאט טרי':'7290008432320',
+  'דנבר קאט קפוא':'7290001495605',
+  'כתף עגל טרי':'7290006289216',
+  'כתף עגל קפוא':'7290006289643',
+  'לשון טרי':'7290006289872',
+  'לשון קפוא':'7290006289049',
+  'סטייק אנטריקוט אנגוס':'7290006289728',
+  'סטייק אנטריקוט פרוס טרי':'7290006289407',
+  'סטייק אנטריקוט פרוס קפוא':'7290008432108',
+  'סטייק טומהוק ארוך קפוא':'7290008432221',
+  'סטייק טומהוק טרי':'7290001021194',
+  'עצמות בקר קפוא':'7290006289261',
+  'עצמות ברך':'7290006289711',
+  'עצמות מוח קפוא':'7290006289469',
+  'פילה מדומה טרי':'7290006289612',
+  'פילה מדומה קפוא':'7290006289032',
+  'צוואר עגל טרי':'7290006289001',
+  'צוואר עגל קפוא':'7290006289438',
+  'צלי כתף טרי':'7290006289810',
+  'צלי כתף קפוא':'7290006289230',
+  'צלעות אונטריפ טרי':'7290008432689',
+  'צלעות אונטריפ קפוא':'7290019494119',
+  'צלעות עגל קפוא':'7290006289636',
+  'קישקע':'7290017890296',
+  'קרפצ\'ו עגל פרוס':'7290006289292',
+  'רצועות עגל להקפצה טרי':'7290006289285',
+  'רצועות עגל להקפצה קפוא':'7290008432269',
+  'שומן עגל לטשולנט':'7290006289193',
+  'שיפודי אנטריקוט':'7290006289308',
+  'שניצל עגל':'7290006289902',
+  'שקדי עגל קפוא':'7290008432917',
+  'גרונות עוף':'7290008432207',
+  'חזה עוף חצוי':'7290008432610',
+  'חזה עוף חצוי טרי':'7290001495438',
+  'חזה עוף טחון':'7290008432009',
+  'חזה עוף טרי':'7290019494140',
+  'חזה עוף שלם':'7290008432979',
+  'ירכיים עוף טרי':'7290019494164',
+  'ירכיים עוף קפוא':'7290008432832',
+  'כנפיים עוף':'7290006289353',
+  'כנפיים עוף חצוי':'7290001495995',
+  'כנפיים עוף טרי':'7290019494133',
+  'כנפיים עוף מתובל קפוא':'7290001495544',
+  'כרעיים עוף טרי':'7290001495360',
+  'כרעיים עוף קפוא':'7290008432306',
+  'מעורב ירושלמי':'7290008432139',
+  'עוף מחולק קפוא':'7290019494195',
+  'עוף פלטה קפוא':'7290002127147',
+  'עוף שלם טרי':'7290001495636',
+  'עוף שלם קפוא':'7290008432023',
+  'עופיון קפוא':'7290001806449',
+  'עורות עוף קפוא':'7290008432337',
+  'עצמות עוף':'7290006289551',
+  'עצמות עוף טרי':'7290001495353',
+  'פרגית ארוך טרי':'7290019494188',
+  'פרגית ארוך עם עור':'7290019494058',
+  'פרגית ארוך קפוא':'7290019494225',
+  'פרגית עוף טרי':'7290019494157',
+  'רצועות עוף':'7290001021170',
+  'שוקיים':'7290006289360',
+  'שוקיים עוף טרי':'7290019494171',
+  'שניצל מסעדות טרי':'7290001495643',
+  'שניצל עוף טרי':'7290001495377',
+  'שניצל עוף קפוא':'7290008432405',
+  'שניצל מסעדות קפוא':'7290008432986',
+  'שיפודי פרגיות':'7290006289759',
+  'שיפודי שווארמה':'7290008432436',
+  'גרון הודו טרי':'7290001806487',
+  'גרונות הודו':'7290008432818',
+  'הודו אדום קפוא':'7290008432016',
+  'הודו טחון':'7290008432368',
+  'חזה הודו ברשת קפוא':'7290008432412',
+  'חזה הודו טרי':'7290001806463',
+  'כנף הודו חצוי קפוא':'7290001806531',
+  'כנפיים הודו טרי':'7290001806456',
+  'כנפיים הודו קפוא':'7290008432214',
+  'רולדה הודו אדום קפוא':'7290001021323',
+  'שווארמה הודו טרי':'7290001806470',
+  'שווארמה הודו קפוא':'7290008432627',
+  'שניצל הודו קפוא':'7290008432429',
+  'פילה אמנון ללא עור':'7290006289797',
+  'פילה סלמון מנות':'7290006289988',
+  'פילה סלמון שלם':'7290006289384',
+  'בשר טחון ק"ג':'7290017890180',
+  'בשר טחון 500 גר':'7290017890289',
+  'המבורגר הקצבים':'7290001021279',
+  'מיני בורגר ביתי':'7290001021156',
+  'מיני בורגר טקסס':'7290001806494',
+  'נקניקיות טלה':'7290006289575',
+  'נקניקיות מרגז':'7290008432573',
+  'נקניקיות עגל קראנץ':'7290006289377',
+  'נקניקיות צוריסוס':'7290008432771',
+  'קבב אנטריקוט':'7290008432177',
+  'קבב טלה':'7290006289889',
+  'קבב מסעדות קפוא':'7290019905066',
+  'שומן בקר טחון':'7290006289681',
+  'זרוע טלה קפוא':'7290006289339',
+  'חזה טלה מקוצב קפוא':'7290006289322',
+  'כתף טלה טרי':'7290006289476',
+  'כתף טלה פרוס':'7290006289704',
+  'כתף טלה שלם קפוא':'7290006289100',
+  'צוואר טלה טרי':'7290008432948',
+  'צוואר טלה פרוס':'7290015760508',
+  'צוואר טלה קפוא':'7290008432962',
+  'צלעות טלה טרי':'7290017496610',
+  'צלעות טלה פרוס':'7290006289483',
+  'צלעות טלה קפוא':'7290001021071',
+  'שומן טלה קפוא':'7290008432313'
+};
+
+PRICE_LIST.forEach(p => { if (BARCODE_MAP[p.name]) p.code = BARCODE_MAP[p.name]; });
+
 const CATS = [...new Set(PRICE_LIST.map(p=>p.cat))];
 const VAT = 0.18;
 
@@ -1323,7 +1486,114 @@ function loadDB() {
 function saveDB() {
   localStorage.setItem('wd_pro_db', JSON.stringify(db));
 }
+
+function migrateOldClientData(force=false) {
+  let changed = false;
+  if (!force && db.clients && db.clients.length) return false;
+
+  const sources = [
+    { key:'customers', type:'simple' },
+    { key:'welldone_customers', type:'welldone' }
+  ];
+
+  sources.forEach(src => {
+    try {
+      const raw = localStorage.getItem(src.key);
+      if (!raw) return;
+      const arr = JSON.parse(raw);
+      if (!Array.isArray(arr)) return;
+
+      arr.forEach(oldC => {
+        const name = (oldC.name || oldC.customerName || '').trim();
+        if (!name) return;
+        const phone = oldC.phone || oldC.customerPhone || '';
+        const exists = db.clients.some(c => c.name === name && (c.phone||'') === phone);
+        if (exists) return;
+        const id = oldC.id || Date.now() + Math.floor(Math.random()*100000);
+        const invoices = Array.isArray(oldC.invoices) ? oldC.invoices : [];
+        const debtFromInvoices = invoices.reduce((sum, inv) => {
+          const status = inv.status === 'שולם' || inv.status === 'paid' ? 'paid' : (inv.status === 'חלקי' || inv.status === 'partial' ? 'partial' : 'unpaid');
+          const total = Number(inv.grandTotal ?? inv.grand ?? inv.total ?? 0);
+          const paid = Number(inv.paid ?? (status === 'paid' ? total : 0));
+          return sum + Math.max(total - paid, 0);
+        }, 0);
+
+        db.clients.push({
+          id, name, phone,
+          address: oldC.address || '',
+          debt: Number(oldC.debt || oldC.previousDebt || 0) + debtFromInvoices,
+          notes: oldC.notes || '',
+          createdAt: oldC.createdAt || new Date().toISOString()
+        });
+
+        invoices.forEach(inv => {
+          const total = Number(inv.grandTotal ?? inv.grand ?? inv.total ?? 0);
+          const paid = Number(inv.paid ?? (inv.status === 'שולם' || inv.status === 'paid' ? total : 0));
+          const status = paid >= total && total > 0 ? 'paid' : (paid > 0 ? 'partial' : 'unpaid');
+          db.invoices.push({
+            id: inv.id || ('INV-' + Date.now() + '-' + Math.floor(Math.random()*100000)),
+            num: inv.num || db.nextInvoiceNum++,
+            clientId: id,
+            clientName: name,
+            date: inv.date || new Date().toISOString().slice(0,10),
+            lines: inv.items || inv.lines || [],
+            subtotal: Number(inv.subtotal || 0),
+            vat: Number(inv.vat || 0),
+            afterVat: Number(inv.total || inv.afterVat || 0),
+            grandTotal: total,
+            paid,
+            status
+          });
+        });
+
+        changed = true;
+      });
+    } catch(e) { console.warn('migration failed', src.key, e); }
+  });
+
+  if (changed) { saveDB(); }
+  return changed;
+}
+
+const BARCODE_KEY = 'wd_pro_barcode_overrides';
+function loadBarcodeOverrides() {
+  try {
+    const data = JSON.parse(localStorage.getItem(BARCODE_KEY) || '{}');
+    Object.entries(data).forEach(([name, code]) => {
+      const p = PRICE_LIST.find(x => x.name === name);
+      if (p) p.code = String(code || '').trim();
+    });
+  } catch(e) {}
+}
+function saveBarcodeOverride(productName, code) {
+  const clean = String(code || '').trim();
+  if (!productName) return;
+  const p = PRICE_LIST.find(x => x.name === productName);
+  if (!p) { toast('מוצר לא נמצא', 'err'); return; }
+  p.code = clean;
+  const data = JSON.parse(localStorage.getItem(BARCODE_KEY) || '{}');
+  if (clean) data[productName] = clean; else delete data[productName];
+  localStorage.setItem(BARCODE_KEY, JSON.stringify(data));
+  renderPriceList();
+  toast(clean ? 'הברקוד נשמר ✓' : 'הברקוד נמחק', 'ok');
+}
+function saveBarcodeFromRow(productName) {
+  const input = document.getElementById('barcode-input-' + safeId(productName));
+  saveBarcodeOverride(productName, input ? input.value : '');
+}
+function openQuickBarcodeAdd() {
+  const productName = prompt('לאיזה מוצר להוסיף ברקוד? כתוב שם מוצר כפי שמופיע במחירון');
+  if (!productName) return;
+  const p = PRICE_LIST.find(x => x.name.includes(productName.trim()) || productName.trim().includes(x.name));
+  if (!p) { toast('לא מצאתי מוצר בשם הזה. חפש במחירון וערוך בשורה שלו.', 'err'); return; }
+  const code = prompt('הכנס ברקוד / מק״ט עבור: ' + p.name, p.code || '');
+  if (code !== null) saveBarcodeOverride(p.name, code);
+}
+function safeId(s) { return String(s).replace(/[^֐-׿a-zA-Z0-9_-]/g, '_'); }
+
 loadDB();
+migrateOldClientData(false);
+loadBarcodeOverrides();
 db.invoices.forEach(inv => { if (typeof inv.paid !== 'number') inv.paid = Number(inv.paid || 0); normalizeInvoiceStatus?.(inv); });
 saveDB();
 
@@ -1470,13 +1740,13 @@ function onProductSearch() {
   const q = document.getElementById('productSearch').value.trim().toLowerCase();
   const sug = document.getElementById('productSuggestions');
   if (!q) { sug.classList.remove('open'); return; }
-  const results = PRICE_LIST.filter(p=>p.name.toLowerCase().includes(q)||p.cat.toLowerCase().includes(q)).slice(0,12);
+  const results = PRICE_LIST.filter(p=>p.name.toLowerCase().includes(q)||p.cat.toLowerCase().includes(q)||(p.code||'').includes(q)).slice(0,12);
   if (!results.length) { sug.classList.remove('open'); return; }
   sug.innerHTML = results.map(p=>`
     <div class="suggestion-item" onclick="addProductFromList('${esc(p.name)}',${p.price},'${p.cat}')">
       <div>
         <div class="suggestion-name">${p.name}</div>
-        <div class="suggestion-cat">${p.cat}</div>
+        <div class="suggestion-cat">${p.cat}${p.code ? ` · ${p.code}` : ``}</div>
       </div>
       <div class="suggestion-price">₪${p.price}</div>
     </div>`).join('');
@@ -1512,6 +1782,80 @@ function addCustomProduct() {
   renderLineItems();
   calcTotals();
   toast(`${name} נוסף ✓`, 'ok');
+}
+
+
+// ============================================================
+//  BARCODE SCANNER
+// ============================================================
+let barcodeScanner = null;
+let barcodeScannerRunning = false;
+
+function findProductByBarcode(code) {
+  const clean = String(code || '').trim();
+  return PRICE_LIST.find(p => String(p.code || '') === clean || String(p.code || '').endsWith(clean));
+}
+
+function addProductByBarcode(code) {
+  const product = findProductByBarcode(code);
+  if (!product) {
+    toast('ברקוד לא נמצא במחירון: ' + code, 'err');
+    document.getElementById('productSearch').value = code;
+    onProductSearch();
+    return false;
+  }
+  addProductFromList(product.name, product.price, product.cat);
+  toast('נסרק: ' + product.name, 'ok');
+  return true;
+}
+
+function manualBarcodeSearch() {
+  const code = prompt('הכנס / הדבק ברקוד');
+  if (!code) return;
+  addProductByBarcode(code);
+}
+
+async function startBarcodeScanner() {
+  const box = document.getElementById('barcodeBox');
+  box.classList.add('open');
+
+  if (!window.Html5Qrcode) {
+    toast('ספריית סריקת הברקוד לא נטענה. בדוק אינטרנט ונסה שוב.', 'err');
+    return;
+  }
+
+  try {
+    if (!barcodeScanner) barcodeScanner = new Html5Qrcode('barcodeReader');
+    if (barcodeScannerRunning) return;
+
+    barcodeScannerRunning = true;
+    await barcodeScanner.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 260, height: 160 }, formatsToSupport: [
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.UPC_E
+      ]},
+      decodedText => {
+        if (addProductByBarcode(decodedText)) stopBarcodeScanner();
+      },
+      () => {}
+    );
+  } catch (err) {
+    barcodeScannerRunning = false;
+    toast('לא ניתן לפתוח מצלמה. צריך הרשאת מצלמה ו־HTTPS.', 'err');
+  }
+}
+
+async function stopBarcodeScanner() {
+  const box = document.getElementById('barcodeBox');
+  try {
+    if (barcodeScanner && barcodeScannerRunning) await barcodeScanner.stop();
+  } catch(e) {}
+  barcodeScannerRunning = false;
+  box.classList.remove('open');
 }
 
 // ============================================================
@@ -1741,7 +2085,8 @@ function renderClientsList() {
   let filtered = db.clients.filter(c=>c.name.toLowerCase().includes(q)||(c.phone||'').includes(q));
   if (clientFilterMode === 'debt') filtered = filtered.filter(c=>(c.debt||0)>0);
   if (!filtered.length) {
-    list.innerHTML = `<div class="empty"><span class="empty-icon">👥</span><div class="empty-text">${q?'לא נמצאו תוצאות':'אין לקוחות. הוסף לקוח ראשון!'}</div></div>`;
+    const hadOld = !!(localStorage.getItem('customers') || localStorage.getItem('welldone_customers'));
+    list.innerHTML = `<div class="empty"><span class="empty-icon">👥</span><div class="empty-text">${q?'לא נמצאו תוצאות':'אין לקוחות להצגה כרגע'}</div>${hadOld ? `<div class="client-repair-box">ייתכן שיש לקוחות מגרסה ישנה. <button class="btn btn-gold btn-sm" onclick="repairClientsFromOldStorage()">טען לקוחות ישנים</button></div>` : ''}</div>`;
     return;
   }
 
@@ -1757,6 +2102,19 @@ function renderClientsList() {
         <button class="btn btn-danger btn-xs" onclick="deleteClient(${c.id},event)">🗑</button>
       </div>
     </div>`).join('');
+}
+
+function repairClientsFromOldStorage() {
+  const ok = migrateOldClientData(true);
+  if (ok) {
+    saveDB();
+    renderClientsList();
+    populateClientSelect();
+    refreshDashboard();
+    toast('לקוחות ישנים נטענו ✓', 'ok');
+  } else {
+    toast('לא נמצאו לקוחות ישנים לטעינה', 'err');
+  }
 }
 
 function openClientDetail(id) {
@@ -2050,13 +2408,19 @@ function renderPriceList() {
 
   let list = PRICE_LIST;
   if (selectedPlCat) list = list.filter(p=>p.cat===selectedPlCat);
-  if (q) list = list.filter(p=>p.name.toLowerCase().includes(q)||p.cat.toLowerCase().includes(q));
+  if (q) list = list.filter(p=>p.name.toLowerCase().includes(q)||p.cat.toLowerCase().includes(q)||(p.code||'').includes(q));
 
   tbody.innerHTML = list.map(p=>`
     <tr>
       <td><span class="badge badge-gray">${catIcon(p.cat)} ${p.cat}</span></td>
-      <td><strong>${p.name}</strong></td>
+      <td><strong>${p.name}</strong><div class="barcode-code">${p.code || "אין ברקוד"}</div></td>
       <td><strong style="color:var(--gold-light);">₪${p.price}</strong></td>
+      <td>
+        <div class="barcode-edit-row">
+          <input id="barcode-input-${safeId(p.name)}" value="${p.code || ''}" placeholder="הכנס ברקוד" inputmode="numeric">
+          <button class="btn btn-gold btn-xs" onclick="saveBarcodeFromRow('${esc(p.name)}')">שמור</button>
+        </div>
+      </td>
       <td><button class="btn btn-ghost btn-xs" onclick="addProductFromListAndGoToInvoice('${esc(p.name)}',${p.price},'${p.cat}')">+ להוסיף</button></td>
     </tr>`).join('');
 }
