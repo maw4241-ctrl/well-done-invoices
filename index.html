@@ -2078,11 +2078,13 @@ function buildReceiptHTML(inv) {
 //  CLIENTS PAGE
 // ============================================================
 function renderClientsList() {
+  importClientsFromEveryStorage();
   const q = (document.getElementById('client-search')?.value||'').toLowerCase();
   const list = document.getElementById('clients-list');
-  document.getElementById('clients-count-badge').textContent = db.clients.length;
+  const badge = document.getElementById('clients-count-badge');
+  if (badge) badge.textContent = db.clients.length;
 
-  let filtered = db.clients.filter(c=>c.name.toLowerCase().includes(q)||(c.phone||'').includes(q));
+  let filtered = db.clients.filter(c=>String(c.name||'').toLowerCase().includes(q)||String(c.phone||'').includes(q));
   if (clientFilterMode === 'debt') filtered = filtered.filter(c=>(c.debt||0)>0);
   if (!filtered.length) {
     const hadOld = !!(localStorage.getItem('customers') || localStorage.getItem('welldone_customers'));
@@ -2231,10 +2233,13 @@ function saveClient() {
   }
 
   saveDB();
+  mirrorClientsForSafety();
   closeModal('newClientModal');
+  clientFilterMode = 'all';
   renderClientsList();
   populateClientSelect();
   refreshDashboard();
+  openClientDetail(editingClientId || db.clients[db.clients.length-1].id);
 }
 
 function deleteClient(id, e) {
@@ -2516,6 +2521,9 @@ const now = new Date();
 document.getElementById('headerDate').textContent =
   now.toLocaleDateString('he-IL',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 
+loadDB();
+importClientsFromEveryStorage();
+mirrorClientsForSafety();
 initAuth();
 showPage('dashboard');
 </script>
