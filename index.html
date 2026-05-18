@@ -1144,8 +1144,41 @@ tbody tr { transition: all 0.15s; cursor: default; }
     <div class="modal-body" id="invViewBody"></div>
     <div class="modal-foot">
       <button class="btn btn-primary" onclick="printInvoiceView()">🖨 הדפס</button>
+      <button class="btn btn-success btn-sm" id="invViewPaymentBtn">💰 הוסף תשלום</button>
       <button class="btn btn-danger btn-sm" id="invViewDeleteBtn">🗑 מחק חשבונית</button>
       <button class="btn btn-ghost" onclick="closeModal('invoiceViewModal')">סגור</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ============ MODAL: ADD PAYMENT ============ -->
+<div class="modal-overlay" id="paymentModal">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title" id="paymentTitle">💰 הוספת תשלום</div>
+      <button class="modal-close" onclick="closeModal('paymentModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="section-label">פרטי תשלום</div>
+      <div class="form-row single">
+        <div class="field">
+          <label class="label">יתרה לתשלום</label>
+          <input type="text" id="paymentRemaining" readonly>
+        </div>
+      </div>
+      <div class="form-row single">
+        <div class="field">
+          <label class="label">סכום ששולם עכשיו</label>
+          <input type="number" id="paymentAmount" min="0" step="0.01" placeholder="לדוגמה: 500">
+        </div>
+      </div>
+      <div class="note-text">אפשר לרשום תשלום חלקי או ללחוץ על “סמן שולם מלא”.</div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-success" onclick="applyInvoicePayment(false)">שמור תשלום</button>
+      <button class="btn btn-gold" onclick="applyInvoicePayment(true)">סמן שולם מלא</button>
+      <button class="btn btn-ghost" onclick="closeModal('paymentModal')">ביטול</button>
     </div>
   </div>
 </div>
@@ -1291,6 +1324,8 @@ function saveDB() {
   localStorage.setItem('wd_pro_db', JSON.stringify(db));
 }
 loadDB();
+db.invoices.forEach(inv => { if (typeof inv.paid !== 'number') inv.paid = Number(inv.paid || 0); normalizeInvoiceStatus?.(inv); });
+saveDB();
 
 // ============================================================
 //  INVOICE STATE
@@ -1688,7 +1723,8 @@ function buildReceiptHTML(inv) {
       <div class="receipt-t-row"><span>אחרי מע"מ</span><span>₪${inv.afterVat.toFixed(2)}</span></div>
       ${inv.prevDebt>0?`<div class="receipt-t-row" style="color:#D94F3D"><span>חוב קודם</span><span>₪${inv.prevDebt.toFixed(2)}</span></div>`:''}
       <div class="receipt-t-row big"><span>סה"כ לתשלום</span><span class="rtr-val">₪${inv.grandTotal.toFixed(2)}</span></div>
-      ${inv.paid>0?`<div class="receipt-t-row" style="color:#27AE60;margin-top:6px;"><span>שולם</span><span>₪${inv.paid.toFixed(2)}</span></div>`:''}
+      ${inv.paid>0?`<div class="receipt-t-row" style="color:#27AE60;margin-top:6px;"><span>שולם</span><span>₪${Number(inv.paid||0).toFixed(2)}</span></div>`:''}
+      ${invoiceRemaining(inv)>0?`<div class="receipt-t-row" style="color:#D94F3D;font-weight:800;"><span>יתרה לתשלום</span><span>₪${invoiceRemaining(inv).toFixed(2)}</span></div>`:`<div class="receipt-t-row" style="color:#27AE60;font-weight:800;"><span>סטטוס</span><span>שולם מלא</span></div>`}
     </div>
     <div class="receipt-footer-text">תודה על הקנייה! 🥩 חזרו שוב</div>
   </div>`;
@@ -1766,6 +1802,7 @@ function openClientDetail(id) {
           <div style="text-align:left;">
             <div style="font-size:14px;font-weight:800;color:var(--gold-light);">${fmt(inv.grandTotal)}</div>
             <div>${statusBadge(inv.status)}</div>
+            <button class="btn btn-success btn-xs" style="margin-top:6px;" onclick="event.stopPropagation(); openPaymentModal('${inv.id}')">💰 תשלום</button>
           </div>
         </div>`).join('')}
   `;
@@ -1887,10 +1924,77 @@ function renderHistory() {
       <td onclick="event.stopPropagation()">
         <div class="flex gap-8">
           <button class="btn btn-ghost btn-xs" onclick="openInvoiceView('${inv.id}')">👁</button>
+          <button class="btn btn-success btn-xs" onclick="openPaymentModal('${inv.id}')">💰</button>
           <button class="btn btn-danger btn-xs" onclick="deleteInvoice('${inv.id}')">🗑</button>
         </div>
       </td>
     </tr>`).join('');
+}
+
+
+// ============================================================
+//  PAYMENTS AFTER INVOICE SAVED
+// ============================================================
+let paymentInvoiceId = null;
+
+function invoiceRemaining(inv) {
+  return Math.max(0, Number(inv.grandTotal || 0) - Number(inv.paid || 0));
+}
+
+function normalizeInvoiceStatus(inv) {
+  const remaining = invoiceRemaining(inv);
+  const paid = Number(inv.paid || 0);
+  if (remaining <= 0.01) inv.status = 'paid';
+  else if (paid > 0) inv.status = 'partial';
+  else inv.status = 'unpaid';
+}
+
+function refreshClientDebtFromLatestInvoice(clientId) {
+  if (!clientId) return;
+  const c = db.clients.find(x => x.id === clientId);
+  if (!c) return;
+  const clientInvoices = db.invoices
+    .filter(inv => inv.clientId === clientId)
+    .sort((a,b) => (new Date(b.createdAt || b.date).getTime() || b.num || 0) - (new Date(a.createdAt || a.date).getTime() || a.num || 0));
+  const latest = clientInvoices[0];
+  c.debt = latest ? invoiceRemaining(latest) : 0;
+}
+
+function openPaymentModal(id) {
+  const inv = db.invoices.find(x => x.id === id);
+  if (!inv) return;
+  paymentInvoiceId = id;
+  normalizeInvoiceStatus(inv);
+  const remaining = invoiceRemaining(inv);
+  document.getElementById('paymentTitle').textContent = `💰 הוספת תשלום — חשבונית #${inv.num}`;
+  document.getElementById('paymentRemaining').value = fmt(remaining);
+  document.getElementById('paymentAmount').value = remaining > 0 ? remaining.toFixed(2) : 0;
+  openModal('paymentModal');
+}
+
+function applyInvoicePayment(payFull=false) {
+  const inv = db.invoices.find(x => x.id === paymentInvoiceId);
+  if (!inv) return;
+  const remainingBefore = invoiceRemaining(inv);
+  if (remainingBefore <= 0.01) {
+    inv.paid = Number(inv.grandTotal || 0);
+    inv.status = 'paid';
+  } else {
+    const entered = parseFloat(document.getElementById('paymentAmount').value) || 0;
+    const amount = payFull ? remainingBefore : entered;
+    if (amount <= 0) { toast('הכנס סכום תשלום', 'err'); return; }
+    inv.paid = Math.min(Number(inv.grandTotal || 0), Number(inv.paid || 0) + amount);
+    normalizeInvoiceStatus(inv);
+  }
+  refreshClientDebtFromLatestInvoice(inv.clientId);
+  saveDB();
+  closeModal('paymentModal');
+  if (document.getElementById('invoiceViewModal')?.classList.contains('open')) openInvoiceView(inv.id);
+  renderHistory();
+  renderClientsList();
+  refreshDashboard();
+  if (inv.clientId) openClientDetail(inv.clientId);
+  toast('התשלום עודכן ✓', 'ok');
 }
 
 let viewingInvoiceId = null;
@@ -1901,6 +2005,7 @@ function openInvoiceView(id) {
   viewingInvoiceId = id;
   document.getElementById('invViewTitle').textContent = `חשבונית #${inv.num} — ${inv.clientName}`;
   document.getElementById('invViewBody').innerHTML = buildReceiptHTML(inv);
+  document.getElementById('invViewPaymentBtn').onclick = ()=>openPaymentModal(id);
   document.getElementById('invViewDeleteBtn').onclick = ()=>{ deleteInvoice(id); closeModal('invoiceViewModal'); };
   openModal('invoiceViewModal');
 }
@@ -1917,7 +2022,9 @@ function printInvoiceView() {
 function deleteInvoice(id, e) {
   if (e) e?.stopPropagation?.();
   if (!confirm('למחוק חשבונית זו?')) return;
+  const deletedInv = db.invoices.find(x=>x.id===id);
   db.invoices = db.invoices.filter(x=>x.id!==id);
+  if (deletedInv?.clientId) refreshClientDebtFromLatestInvoice(deletedInv.clientId);
   saveDB();
   renderHistory();
   refreshDashboard();
